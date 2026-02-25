@@ -1,33 +1,55 @@
 import Foundation
 import CMonitorCore
+import Combine
 
-struct MonitorInfo {
+struct MonitorInfo: Identifiable {
     let id: String
     let modelName: String?
     let manufacturerId: String?
     let index: Int
+
+    var displayName: String {
+        if let name = modelName {
+            return "\(name) (\(index + 1))"
+        } else if let mfr = manufacturerId {
+            return "\(mfr) (\(index + 1))"
+        } else {
+            return "Monitor \(index + 1)"
+        }
+    }
 }
 
-class MonitorCore {
+class MonitorCore: ObservableObject {
     static let shared = MonitorCore()
+
+    @Published private(set) var monitors: [MonitorInfo] = []
 
     private init() {
         monitor_core_init()
+        refreshMonitors()
     }
 
-    func enumerateMonitors() -> [MonitorInfo] {
+    func refreshMonitors() {
+        monitors = enumerateMonitors()
+    }
+
+    private func enumerateMonitors() -> [MonitorInfo] {
         let list = monitor_enumerate()
         defer { monitor_list_free(list) }
 
-        var monitors: [MonitorInfo] = []
+        var result: [MonitorInfo] = []
         for i in 0..<Int(list.count) {
             let info = list.monitors[i]
             let id = info.id.map { String(cString: $0) } ?? "unknown"
             let modelName = info.model_name.map { String(cString: $0) }
             let manufacturerId = info.manufacturer_id.map { String(cString: $0) }
-            monitors.append(MonitorInfo(id: id, modelName: modelName, manufacturerId: manufacturerId, index: i))
+            result.append(MonitorInfo(id: id, modelName: modelName, manufacturerId: manufacturerId, index: i))
         }
-        return monitors
+        return result
+    }
+
+    func getInputDisplayName(monitorId: String, input: InputSource) -> String {
+        getAlias(monitorId: monitorId, input: input) ?? input.displayName
     }
 
     func getCurrentInput(monitorIndex: Int) -> InputSource {
