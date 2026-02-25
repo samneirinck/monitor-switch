@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   build-macos:
@@ -58,10 +58,12 @@ jobs:
           name: monitor-switch-linux
           path: apps/linux/target/release/monitor-switch
 
-  release:
+  upload-assets:
     needs: [build-macos, build-linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
+    permissions:
+      contents: write
     steps:
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
@@ -79,7 +81,7 @@ jobs:
         run: zip -r MonitorSwitch-macos.zip MonitorSwitch.app
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             MonitorSwitch-macos.zip
