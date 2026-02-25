@@ -1,36 +1,22 @@
-import Foundation
 import CMonitorCore
 
 typealias InputSource = CMonitorCore.InputSource
 
 extension InputSource {
+    private static let names: [UInt32: String] = [
+        1: "VGA 1", 2: "VGA 2",
+        3: "DVI 1", 4: "DVI 2",
+        5: "Composite 1", 6: "Composite 2",
+        7: "S-Video 1", 8: "S-Video 2",
+        9: "Tuner 1", 10: "Tuner 2", 11: "Tuner 3",
+        12: "Component 1", 13: "Component 2", 14: "Component 3",
+        15: "DisplayPort 1", 16: "DisplayPort 2",
+        17: "HDMI 1", 18: "HDMI 2", 19: "HDMI 3", 20: "HDMI 4",
+        21: "USB-C 1", 22: "USB-C 2", 23: "USB-C 3"
+    ]
+
     var displayName: String {
-        switch self.rawValue {
-        case 1: return "VGA 1"
-        case 2: return "VGA 2"
-        case 3: return "DVI 1"
-        case 4: return "DVI 2"
-        case 5: return "Composite 1"
-        case 6: return "Composite 2"
-        case 7: return "S-Video 1"
-        case 8: return "S-Video 2"
-        case 9: return "Tuner 1"
-        case 10: return "Tuner 2"
-        case 11: return "Tuner 3"
-        case 12: return "Component 1"
-        case 13: return "Component 2"
-        case 14: return "Component 3"
-        case 15: return "DisplayPort 1"
-        case 16: return "DisplayPort 2"
-        case 17: return "HDMI 1"
-        case 18: return "HDMI 2"
-        case 19: return "HDMI 3"
-        case 20: return "HDMI 4"
-        case 21: return "USB-C 1"
-        case 22: return "USB-C 2"
-        case 23: return "USB-C 3"
-        default: return "Unknown"
-        }
+        Self.names[rawValue] ?? "Unknown"
     }
 }
 

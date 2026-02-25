@@ -1,8 +1,8 @@
 import Foundation
 import ServiceManagement
-import Combine
 
-class LoginItemManager: ObservableObject {
+@Observable
+final class LoginItemManager {
     static let shared = LoginItemManager()
 
     private init() {}
@@ -12,7 +12,6 @@ class LoginItemManager: ObservableObject {
             SMAppService.mainApp.status == .enabled
         }
         set {
-            objectWillChange.send()
             do {
                 if newValue {
                     try SMAppService.mainApp.register()
