@@ -1,12 +1,8 @@
-name: Build
+name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
-  release:
-    types: [published]
 
 jobs:
   build-macos:
@@ -25,13 +21,6 @@ jobs:
           cp include/monitor_core.h apps/macos/Sources/CMonitorCore/
           cd apps/macos
           swift build -c release
-          ./build-app.sh
-
-      - name: Upload macOS app
-        uses: actions/upload-artifact@v4
-        with:
-          name: MonitorSwitch-macos
-          path: apps/macos/MonitorSwitch.app
 
   build-linux:
     runs-on: ubuntu-latest
@@ -51,39 +40,4 @@ jobs:
 
       - name: Build Linux app
         run: cd apps/linux && cargo build --release
-
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: monitor-switch-linux
-          path: apps/linux/target/release/monitor-switch
-
-  upload-assets:
-    needs: [build-macos, build-linux]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release'
-    permissions:
-      contents: write
-    steps:
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: MonitorSwitch-macos
-          path: MonitorSwitch.app
-
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: monitor-switch-linux
-          path: linux
-
-      - name: Create macOS zip
-        run: zip -r MonitorSwitch-macos.zip MonitorSwitch.app
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            MonitorSwitch-macos.zip
-            linux/monitor-switch
 
