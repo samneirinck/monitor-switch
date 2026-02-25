@@ -1,24 +1,20 @@
+mod application;
 mod autostart;
+mod input_row;
 mod preferences;
 mod window;
 
+use gtk4::gio;
+use gtk4::glib;
 use gtk4::prelude::*;
-use gtk4::{gio, glib};
-use libadwaita as adw;
 
-const APP_ID: &str = "com.github.samneirinck.MonitorSwitch";
+pub const APP_ID: &str = "com.github.samneirinck.MonitorSwitch";
 
 fn main() -> glib::ExitCode {
-    let app = adw::Application::builder()
-        .application_id(APP_ID)
-        .flags(gio::ApplicationFlags::FLAGS_NONE)
-        .build();
+    gio::resources_register_include!("monitor-switch.gresource")
+        .expect("Failed to register resources");
 
-    app.connect_activate(|app| {
-        let win = window::MainWindow::new(app);
-        win.present();
-    });
-
+    let app = application::MonitorSwitchApplication::new();
     app.run()
 }
 

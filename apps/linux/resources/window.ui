@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="MonitorSwitchWindow" parent="AdwApplicationWindow">
+    <property name="title">Monitor Switch</property>
+    <property name="default-width">320</property>
+    <property name="default-height">400</property>
+    <property name="resizable">false</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <property name="vexpand">true</property>
+            <child>
+              <object class="GtkListBox" id="list_box">
+                <property name="selection-mode">none</property>
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <property name="margin-top">12</property>
+                <property name="margin-bottom">12</property>
+                <style>
+                  <class name="boxed-list"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparator"/>
+        </child>
+        <child>
+          <object class="GtkBox" id="footer">
+            <property name="orientation">vertical</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="margin-top">8</property>
+            <property name="margin-bottom">12</property>
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">8</property>
+                <child>
+                  <object class="GtkButton" id="prefs_button">
+                    <property name="label">Preferences</property>
+                    <property name="hexpand">true</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="refresh_button">
+                    <property name="icon-name">view-refresh-symbolic</property>
+                    <property name="tooltip-text">Refresh</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="autostart_check">
+                <property name="label">Launch at Login</property>
+                <property name="margin-top">8</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
+

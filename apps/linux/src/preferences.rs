@@ -1,42 +1,222 @@
 use gtk4::prelude::*;
-use gtk4::{Align, Box as GtkBox, Button, CheckButton, DropDown, Entry, Label, ListBox, ListBoxRow, Orientation, SelectionMode, StringList};
 use libadwaita as adw;
 use libadwaita::prelude::*;
-use monitor_core::{Config, InputSource, Monitor};
+use monitor_core::{InputSource, Monitor};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct PreferencesWindow {
-    window: adw::Window,
-}
+use crate::window::MonitorSwitchWindow;
 
+#[derive(Clone)]
 struct MonitorData {
     id: String,
     name: String,
-    index: usize,
     available_inputs: Vec<InputSource>,
     current_input: Option<InputSource>,
 }
 
+struct InputRowWidgets {
+    input: InputSource,
+    row: adw::EntryRow,
+    favorite_switch: gtk4::Switch,
+}
+
+pub struct PreferencesWindow {
+    window: adw::PreferencesWindow,
+    main_window: MonitorSwitchWindow,
+    monitors: Vec<MonitorData>,
+    input_rows: Rc<RefCell<Vec<InputRowWidgets>>>,
+    current_monitor_idx: Rc<RefCell<usize>>,
+}
+
 impl PreferencesWindow {
-    pub fn new(parent: &adw::ApplicationWindow, config: &Rc<RefCell<Config>>) -> Self {
-        let window = adw::Window::builder()
+    pub fn new(parent: &MonitorSwitchWindow) -> Self {
+        let window = adw::PreferencesWindow::builder()
             .title("Preferences")
             .default_width(500)
-            .default_height(400)
+            .default_height(450)
             .modal(true)
             .transient_for(parent)
             .build();
 
         let monitors = load_monitors();
-        let content = build_content(&window, &monitors, config);
-        window.set_content(Some(&content));
+        let input_rows = Rc::new(RefCell::new(Vec::new()));
+        let current_monitor_idx = Rc::new(RefCell::new(0));
 
-        Self { window }
+        let prefs = Self {
+            window,
+            main_window: parent.clone(),
+            monitors,
+            input_rows,
+            current_monitor_idx,
+        };
+
+        prefs.build_ui();
+        prefs
+    }
+
+    fn build_ui(&self) {
+        let page = adw::PreferencesPage::new();
+        page.set_icon_name(Some("preferences-system-symbolic"));
+        page.set_title("Inputs");
+
+        let monitor_group = adw::PreferencesGroup::new();
+        monitor_group.set_title("Monitor");
+
+        let monitor_names: Vec<&str> = self.monitors.iter().map(|m| m.name.as_str()).collect();
+        let monitor_list = gtk4::StringList::new(&monitor_names);
+
+        let monitor_row = adw::ComboRow::builder()
+            .title("Select Monitor")
+            .model(&monitor_list)
+            .build();
+
+        monitor_group.add(&monitor_row);
+        page.add(&monitor_group);
+
+        let inputs_group = adw::PreferencesGroup::new();
+        inputs_group.set_title("Inputs");
+        inputs_group.set_description(Some("Set aliases and mark favorites"));
+        page.add(&inputs_group);
+
+        if !self.monitors.is_empty() {
+            self.populate_inputs(&inputs_group, 0);
+        }
+
+        let inputs_group_rc = Rc::new(inputs_group);
+        let prefs_clone = PreferencesWindowRef {
+            main_window: self.main_window.clone(),
+            monitors: self.monitors.clone(),
+            input_rows: self.input_rows.clone(),
+            current_monitor_idx: self.current_monitor_idx.clone(),
+        };
+        let inputs_group_for_callback = inputs_group_rc.clone();
+
+        monitor_row.connect_selected_notify(move |row| {
+            let idx = row.selected() as usize;
+            if idx < prefs_clone.monitors.len() {
+                prefs_clone.save_current_monitor();
+                *prefs_clone.current_monitor_idx.borrow_mut() = idx;
+                prefs_clone.populate_inputs(&inputs_group_for_callback, idx);
+            }
+        });
+
+        self.window.add(&page);
+
+        let prefs_clone = PreferencesWindowRef {
+            main_window: self.main_window.clone(),
+            monitors: self.monitors.clone(),
+            input_rows: self.input_rows.clone(),
+            current_monitor_idx: self.current_monitor_idx.clone(),
+        };
+
+        self.window.connect_close_request(move |_| {
+            prefs_clone.save_current_monitor();
+            prefs_clone.main_window.refresh();
+            glib::Propagation::Proceed
+        });
+    }
+
+    fn populate_inputs(&self, group: &adw::PreferencesGroup, monitor_idx: usize) {
+        let ref_data = PreferencesWindowRef {
+            main_window: self.main_window.clone(),
+            monitors: self.monitors.clone(),
+            input_rows: self.input_rows.clone(),
+            current_monitor_idx: self.current_monitor_idx.clone(),
+        };
+        ref_data.populate_inputs(group, monitor_idx);
     }
 
     pub fn present(&self) {
         self.window.present();
+    }
+}
+
+#[derive(Clone)]
+struct PreferencesWindowRef {
+    main_window: MonitorSwitchWindow,
+    monitors: Vec<MonitorData>,
+    input_rows: Rc<RefCell<Vec<InputRowWidgets>>>,
+    current_monitor_idx: Rc<RefCell<usize>>,
+}
+
+impl PreferencesWindowRef {
+    fn populate_inputs(&self, group: &adw::PreferencesGroup, monitor_idx: usize) {
+        for row_widgets in self.input_rows.borrow().iter() {
+            group.remove(&row_widgets.row);
+        }
+        self.input_rows.borrow_mut().clear();
+
+        let Some(monitor) = self.monitors.get(monitor_idx) else {
+            return;
+        };
+
+        let config = self.main_window.config();
+
+        for &input in &monitor.available_inputs {
+            let alias = config
+                .get_alias(&monitor.id, input.to_vcp_value())
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            let is_favorite = config.is_favorite(&monitor.id, input.to_vcp_value());
+            let is_current = monitor.current_input == Some(input);
+
+            let title = if is_current {
+                format!("✓ {}", input.name())
+            } else {
+                input.name().to_string()
+            };
+
+            let row = adw::EntryRow::builder()
+                .title(&title)
+                .text(&alias)
+                .show_apply_button(false)
+                .build();
+
+            let favorite_switch = gtk4::Switch::builder()
+                .active(is_favorite)
+                .valign(gtk4::Align::Center)
+                .tooltip_text("⭐ Favorite")
+                .build();
+
+            row.add_suffix(&favorite_switch);
+
+            group.add(&row);
+
+            self.input_rows.borrow_mut().push(InputRowWidgets {
+                input,
+                row,
+                favorite_switch,
+            });
+        }
+    }
+
+    fn save_current_monitor(&self) {
+        let idx = *self.current_monitor_idx.borrow();
+        let Some(monitor) = self.monitors.get(idx) else {
+            return;
+        };
+
+        self.main_window.update_config(|config| {
+            for row_widgets in self.input_rows.borrow().iter() {
+                let alias = row_widgets.row.text();
+                let is_favorite = row_widgets.favorite_switch.is_active();
+                let input_value = row_widgets.input.to_vcp_value();
+
+                if alias.is_empty() {
+                    config.remove_alias(&monitor.id, input_value);
+                } else {
+                    config.set_alias(&monitor.id, input_value, alias.to_string());
+                }
+
+                if is_favorite {
+                    config.add_favorite(&monitor.id, input_value);
+                } else {
+                    config.remove_favorite(&monitor.id, input_value);
+                }
+            }
+            config.save();
+        });
     }
 }
 
@@ -54,200 +234,10 @@ fn load_monitors() -> Vec<MonitorData> {
             let available_inputs = monitor.get_available_inputs().unwrap_or_default();
             let current_input = monitor.get_current_input().ok();
 
-            MonitorData { id, name, index, available_inputs, current_input }
+            MonitorData { id, name, available_inputs, current_input }
         })
         .collect()
 }
 
-fn build_content(window: &adw::Window, monitors: &[MonitorData], config: &Rc<RefCell<Config>>) -> GtkBox {
-    let content = GtkBox::new(Orientation::Vertical, 0);
-
-    let header = adw::HeaderBar::new();
-    content.append(&header);
-
-    let main_box = GtkBox::new(Orientation::Vertical, 12);
-    main_box.set_margin_start(12);
-    main_box.set_margin_end(12);
-    main_box.set_margin_top(12);
-    main_box.set_margin_bottom(12);
-
-    let monitor_names: Vec<&str> = monitors.iter().map(|m| m.name.as_str()).collect();
-    let monitor_list = StringList::new(&monitor_names);
-
-    let monitor_dropdown = DropDown::builder()
-        .model(&monitor_list)
-        .build();
-
-    let monitor_box = GtkBox::new(Orientation::Horizontal, 8);
-    monitor_box.append(&Label::new(Some("Monitor:")));
-    monitor_box.append(&monitor_dropdown);
-    main_box.append(&monitor_box);
-
-    let list_box = ListBox::new();
-    list_box.set_selection_mode(SelectionMode::None);
-    list_box.add_css_class("boxed-list");
-
-    let input_rows: Rc<RefCell<Vec<InputRowData>>> = Rc::new(RefCell::new(Vec::new()));
-
-    let scrolled = gtk4::ScrolledWindow::builder()
-        .hscrollbar_policy(gtk4::PolicyType::Never)
-        .vscrollbar_policy(gtk4::PolicyType::Automatic)
-        .vexpand(true)
-        .child(&list_box)
-        .build();
-
-    main_box.append(&scrolled);
-
-    if !monitors.is_empty() {
-        populate_inputs(&list_box, &monitors[0], config, &input_rows);
-    }
-
-    let monitors_rc = Rc::new(monitors.to_vec());
-    let list_box_clone = list_box.clone();
-    let config_clone = config.clone();
-    let input_rows_clone = input_rows.clone();
-    monitor_dropdown.connect_selected_notify(move |dropdown| {
-        let idx = dropdown.selected() as usize;
-        if idx < monitors_rc.len() {
-            populate_inputs(&list_box_clone, &monitors_rc[idx], &config_clone, &input_rows_clone);
-        }
-    });
-
-    let button_box = GtkBox::new(Orientation::Horizontal, 8);
-    button_box.set_halign(Align::End);
-
-    let save_button = Button::builder()
-        .label("Save")
-        .css_classes(["suggested-action"])
-        .build();
-
-    let window_clone = window.clone();
-    let config_clone = config.clone();
-    let monitors_clone = Rc::new(monitors.to_vec());
-    let dropdown_clone = monitor_dropdown.clone();
-    save_button.connect_clicked(move |_| {
-        let idx = dropdown_clone.selected() as usize;
-        if idx < monitors_clone.len() {
-            let monitor = &monitors_clone[idx];
-            save_inputs(&monitor.id, &config_clone, &input_rows);
-        }
-        window_clone.close();
-    });
-
-    button_box.append(&save_button);
-    main_box.append(&button_box);
-    content.append(&main_box);
-
-    content
-}
-
-struct InputRowData {
-    input: InputSource,
-    alias_entry: Entry,
-    favorite_check: CheckButton,
-}
-
-fn populate_inputs(list_box: &ListBox, monitor: &MonitorData, config: &Rc<RefCell<Config>>, input_rows: &Rc<RefCell<Vec<InputRowData>>>) {
-    while let Some(row) = list_box.first_child() {
-        list_box.remove(&row);
-    }
-    input_rows.borrow_mut().clear();
-
-    let config_ref = config.borrow();
-
-    for &input in &monitor.available_inputs {
-        let alias = config_ref
-            .get_alias(&monitor.id, input.to_vcp_value())
-            .map(|s| s.to_string())
-            .unwrap_or_default();
-        let is_favorite = config_ref.is_favorite(&monitor.id, input.to_vcp_value());
-        let is_current = monitor.current_input == Some(input);
-
-        let row = create_input_row(input, &alias, is_favorite, is_current, input_rows);
-        list_box.append(&row);
-    }
-}
-
-fn create_input_row(input: InputSource, alias: &str, is_favorite: bool, is_current: bool, input_rows: &Rc<RefCell<Vec<InputRowData>>>) -> ListBoxRow {
-    let hbox = GtkBox::new(Orientation::Horizontal, 8);
-    hbox.set_margin_start(8);
-    hbox.set_margin_end(8);
-    hbox.set_margin_top(8);
-    hbox.set_margin_bottom(8);
-
-    let current_indicator = if is_current { "✓ " } else { "  " };
-    let input_label = Label::builder()
-        .label(&format!("{}{}", current_indicator, input.name()))
-        .width_chars(14)
-        .halign(Align::Start)
-        .build();
-
-    let alias_entry = Entry::builder()
-        .placeholder_text(input.name())
-        .text(alias)
-        .hexpand(true)
-        .build();
-
-    let favorite_check = CheckButton::builder()
-        .active(is_favorite)
-        .tooltip_text("Favorite")
-        .build();
-
-    let star_label = Label::new(Some("⭐"));
-    let fav_box = GtkBox::new(Orientation::Horizontal, 4);
-    fav_box.append(&favorite_check);
-    fav_box.append(&star_label);
-
-    hbox.append(&input_label);
-    hbox.append(&alias_entry);
-    hbox.append(&fav_box);
-
-    input_rows.borrow_mut().push(InputRowData {
-        input,
-        alias_entry: alias_entry.clone(),
-        favorite_check: favorite_check.clone(),
-    });
-
-    ListBoxRow::builder()
-        .activatable(false)
-        .selectable(false)
-        .child(&hbox)
-        .build()
-}
-
-fn save_inputs(monitor_id: &str, config: &Rc<RefCell<Config>>, input_rows: &Rc<RefCell<Vec<InputRowData>>>) {
-    let mut config = config.borrow_mut();
-
-    for row_data in input_rows.borrow().iter() {
-        let alias = row_data.alias_entry.text();
-        let is_favorite = row_data.favorite_check.is_active();
-        let input_value = row_data.input.to_vcp_value();
-
-        if alias.is_empty() {
-            config.remove_alias(monitor_id, input_value);
-        } else {
-            config.set_alias(monitor_id, input_value, alias.to_string());
-        }
-
-        if is_favorite {
-            config.add_favorite(monitor_id, input_value);
-        } else {
-            config.remove_favorite(monitor_id, input_value);
-        }
-    }
-
-    config.save();
-}
-
-impl Clone for MonitorData {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id.clone(),
-            name: self.name.clone(),
-            index: self.index,
-            available_inputs: self.available_inputs.clone(),
-            current_input: self.current_input,
-        }
-    }
-}
+use gtk4::glib;
 
