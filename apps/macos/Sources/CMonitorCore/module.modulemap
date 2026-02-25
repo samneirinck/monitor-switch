@@ -1,0 +1,6 @@
+module CMonitorCore {
+    header "monitor_core.h"
+    link "monitor_core"
+    export *
+}
+

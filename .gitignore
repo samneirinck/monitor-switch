@@ -1,0 +1,25 @@
+# Rust
+target/
+**/target/
+**/*.rs.bk
+
+# Swift
+apps/macos/.build/
+apps/macos/.swiftpm/
+apps/macos/MonitorSwitch.app/
+
+# macOS
+.DS_Store
+*.xcuserstate
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Generated (rebuild with cargo build)
+include/monitor_core.h
+apps/macos/Sources/CMonitorCore/monitor_core.h
+

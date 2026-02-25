@@ -1,0 +1,13 @@
+[package]
+name = "monitor-switch"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "monitor-switch"
+path = "src/main.rs"
+
+[dependencies]
+monitor-core = { path = "../.." }
+ksni = { version = "0.3", features = ["blocking"] }
+
