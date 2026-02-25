@@ -1,6 +1,5 @@
 mod imp {
     use gtk4::glib;
-    use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
     use gtk4::{Button, CheckButton, CompositeTemplate, ListBox, TemplateChild};
     use libadwaita::subclass::prelude::*;
@@ -53,6 +52,7 @@ mod imp {
 
 use gtk4::glib;
 use gtk4::prelude::*;
+use gtk4::subclass::prelude::ObjectSubclassIsExt;
 use gtk4::{Align, Label, ListBoxRow, Orientation, Separator};
 use libadwaita as adw;
 use monitor_core::{Config, InputSource, Monitor};

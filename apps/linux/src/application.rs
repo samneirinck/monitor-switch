@@ -1,9 +1,6 @@
 mod imp {
-    use gtk4::gio;
     use gtk4::glib;
-    use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
-    use libadwaita as adw;
     use libadwaita::subclass::prelude::*;
 
     use crate::window::MonitorSwitchWindow;
@@ -34,7 +31,6 @@ mod imp {
 
 use gtk4::gio;
 use gtk4::glib;
-use gtk4::prelude::*;
 use libadwaita as adw;
 
 glib::wrapper! {

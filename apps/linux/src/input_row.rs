@@ -1,6 +1,5 @@
 mod imp {
     use gtk4::glib;
-    use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
     use gtk4::{CompositeTemplate, Image, Label, TemplateChild};
     use std::cell::Cell;
@@ -38,7 +37,7 @@ mod imp {
 }
 
 use gtk4::glib;
-use gtk4::prelude::*;
+use gtk4::subclass::prelude::ObjectSubclassIsExt;
 use monitor_core::InputSource;
 
 glib::wrapper! {
