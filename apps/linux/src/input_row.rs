@@ -13,7 +13,7 @@ mod imp {
         pub check_icon: TemplateChild<Image>,
 
         pub monitor_index: Cell<usize>,
-        pub input_value: Cell<u8>,
+        pub input_value: Cell<u16>,
     }
 
     #[glib::object_subclass]
