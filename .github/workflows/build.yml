@@ -14,7 +14,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build core library
-        run: cargo build --release
+        run: cargo build -p monitor-core --release
 
       - name: Build macOS app
         run: |
@@ -36,9 +36,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build core library
+      - name: Build workspace
         run: cargo build --release
-
-      - name: Build Linux app
-        run: cd apps/linux && cargo build --release
 
