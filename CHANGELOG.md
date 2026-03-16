@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/samneirinck/monitor-switch/compare/v0.2.1...v0.2.2) (2026-03-16)
+
+
+### Bug Fixes
+
+* correct input_value type to match InputSource u16 API ([63caee0](https://github.com/samneirinck/monitor-switch/commit/63caee07e07a8e52376ef325eaf01c3258b92914))
+
 ## [0.2.1](https://github.com/samneirinck/monitor-switch/compare/v0.2.0...v0.2.1) (2026-02-25)
 
 
